@@ -1,0 +1,5 @@
+# Py chache files
+**/__pycache__
+
+# Config files
+**/.env
