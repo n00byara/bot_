@@ -3,7 +3,10 @@ from dotenv import load_dotenv
 
 from configuration.СhangeError import СhangeError
 
-load_dotenv()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+dotenv_path = os.path.join(f"{BASE_DIR}/config", ".env")
+load_dotenv(dotenv_path)
 
 class Config:
     class _Postgres:
