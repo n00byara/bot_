@@ -9,7 +9,7 @@ start = Router(name=__name__)
 
 @start.message(CommandStart())
 async def cmd_start(message: AMessage):
-    user = db.get_user(message.chat.username)
+    user = db.get_user(message.from_user.id, message.from_user.username)
 
     if user.role_id != 1:
         return await message.answer(f"админ")

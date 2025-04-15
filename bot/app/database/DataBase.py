@@ -1,7 +1,9 @@
 from datetime import datetime
 
 from sqlalchemy import create_engine
+from sqlalchemy.orm import aliased
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from configuration import config
 from database.models import BaseModel
@@ -43,17 +45,26 @@ class DataBase:
                 role_moderator = RoleModel(name="moderator")
                 role_admin = RoleModel(name="admin")
 
-                answer_1 = AnswerModel(text=Message.QUIZ_QUESTION_2.value)
-                answer_2 = AnswerModel(text=Message.QUIZ_QUESTION_3.value)
-                answer_3 = AnswerModel(text=Message.QUIZ_QUESTION_4.value)
-
                 quiz_type_1 = QuizTypeModel(name=Message.GAME_BUTTON.value)
                 quiz_type_2 = QuizTypeModel(name=Message.QUIZ_BUTTON.value)
                 quiz_type_3 = QuizTypeModel(name=Message.OTHER_BUTTON.value)
 
-                session.add_all(
-                    [role_user, role_moderator, role_admin, answer_1, answer_2, answer_3, quiz_type_1, quiz_type_2, quiz_type_3]
-                )
+                constants = [role_user, role_moderator, role_admin, quiz_type_1, quiz_type_2, quiz_type_3]
+
+                answers = [
+                    Message.QUIZ_QUESTION_1.value,
+                    Message.QUIZ_QUESTION_2.value,
+                    Message.QUIZ_QUESTION_3.value,
+                    Message.QUIZ_QUESTION_4.value,
+                    Message.QUIZ_QUESTION_5.value,
+                    Message.QUIZ_QUESTION_6.value,
+                    Message.QUIZ_QUESTION_7.value
+                ]
+
+                for answer in answers:
+                    constants.append(AnswerModel(text=answer))
+
+                session.add_all(constants)
                 session.commit()
 
     def __find_quiz_type(self, quiz_type_name) -> QuizTypeModel:
@@ -68,17 +79,23 @@ class DataBase:
 
         return user
 
-    def get_user(self, username) -> UserModel:
+    def get_user(self, id, username = "", phone_number = "") -> UserModel:
         with Session(self.engine) as session:
-            user = session.query(UserModel).filter(UserModel.username.like(username)).first()
+            user = session.query(UserModel).filter_by(id=id).first()
 
             if not user:
-                user = UserModel(username=username, role_id=1)
+                user = UserModel(id=id, username=username, phone_number=phone_number,  role_id=1)
                 session.add(user)
                 session.commit()
                 session.refresh(user)
 
         return user
+
+    def get_user_by_username(self, username) -> UserModel:
+        with Session(self.engine) as session:
+            user = session.query(UserModel).filter_by(username=username).first()
+
+            return user
         
     def get_role(self, username) -> RoleModel:
         with Session(self.engine) as session:
@@ -86,7 +103,7 @@ class DataBase:
         
     def create_quiz(self, fields) -> QuizModel:
         quiz_type = self.__find_quiz_type(fields[0])
-        user = self.get_user(fields[4])
+        user = self.get_user_by_username(fields[4])
         date = datetime.strptime(fields[3], "%d.%m.%Y").date()
         
         with Session(self.engine) as session:
@@ -117,9 +134,29 @@ class DataBase:
             session.commit()
 
     def get_quiz_result(self):
+        Student = aliased(UserModel, name="students")
+        Teacher = aliased(UserModel, name="teachers")
+
+        aq_subq = select(AnswerUserQuizModel).subquery()
+
         with Session(self.engine) as session:
-            return session.query(AnswerUserQuizModel.value, UserModel.username.label("student"), AnswerModel.text, UserModel.username.label("teacher"))\
-                .join(AnswerModel)\
-                .join(UserModel.id == AnswerUserQuizModel.user_id)\
-                .join(QuizModel)\
-                .join(UserModel.id == QuizModel.teacher_id).all()
+            query = (
+                select(
+                    Student.id.label("student_id"),
+                    QuizModel.name.label("quiz_name"),
+                    Student.username.label("student_username"),
+                    Teacher.username.label("teacher_id"),
+                    QuizTypeModel.name.label("quiz_type"),
+                    aq_subq.c.value.label("answer"),
+                    AnswerModel.id.label("answer_id"),
+                    QuizModel.date.label("quiz_date")
+                )
+                .select_from(aq_subq)
+                .join(AnswerModel, AnswerModel.id == aq_subq.c.answer_id)
+                .join(Student, Student.id == aq_subq.c.user_id)
+                .join(QuizModel, QuizModel.id == aq_subq.c.quiz_id)
+                .join(Teacher, Teacher.id == QuizModel.teacher_id)
+                .join(QuizTypeModel, QuizTypeModel.id == QuizModel.quiz_type_id)
+            )
+
+            return session.execute(query).mappings().all()

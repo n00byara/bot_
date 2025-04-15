@@ -62,7 +62,7 @@ class CreateQuiz(Scene, state="create_quiz"):
         step = data["step"]
 
         if step == 3:
-            user = db.find_user(message.text)
+            user = db.get_user(message.from_user.id)
             if not user:
                 QUESTIONS[3] = Message.QUIZ_FIND_USER_ERROR.value
                 return await self.wizard.retake(step=step)

@@ -24,8 +24,10 @@ QUESTIONS = [
     Message.QUIZ_QUESTION_2.value,
     Message.QUIZ_QUESTION_3.value,
     Message.QUIZ_QUESTION_4.value,
+    Message.QUIZ_QUESTION_7.value,
     Message.QUIZ_QUESTION_5.value,
-    Message.QUIZ_QUESTION_6.value
+    Message.QUIZ_QUESTION_6.value,
+
 ]
 
 # Сцена проведения мероприятия
@@ -46,7 +48,7 @@ class Quiz(Scene, state="quiz"):
             return await self.wizard.exit()
 
         match(step):
-            case 1 | 2 | 3:
+            case 1 | 2 | 3 | 4:
                 await message.answer(text=QUESTIONS[step], reply_markup=marks_kb)
             case _:
                 await message.answer(text=QUESTIONS[step], reply_markup=ReplyKeyboardRemove())
@@ -58,13 +60,13 @@ class Quiz(Scene, state="quiz"):
             await message.answer(text=Message.QUIZ_REPEAT_ERROR.value)
 
         if QuizState.state() and not repeat:
-            user = db.get_user(message.chat.username)
+            user = db.get_user_by_username(message.chat.username)
 
             data = await state.get_data()
             answers = data.get("answers", [])
 
-            for i in range(1, 4):
-                db.add_quiz_answers(answers[i], i, user.id, QuizState.id())
+            for i in range(1, 8):
+                db.add_quiz_answers(answers[i - 1], i, user.id, QuizState.id())
 
             await message.answer(text=Message.QUIZ_RESULT.value)
         elif not QuizState.state() and not repeat:

@@ -1,5 +1,6 @@
 from sqlalchemy import Column
 from sqlalchemy import Integer
+from sqlalchemy import Text
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 
@@ -11,7 +12,7 @@ class AnswerUserQuizModel(BaseModel):
     answer_id = Column(Integer, ForeignKey("answers.id"), primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     quiz_id = Column(Integer, ForeignKey("polls.id"), primary_key=True)
-    value = Column(Integer, nullable=False)
+    value = Column(Text, nullable=False)
 
     answer = relationship("AnswerModel", backref="answer")
     user = relationship("UserModel", backref="user_id")
